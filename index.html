@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<head>
+    <meta name="viewport" content="width=device-width, minimum-scale=1.0, initial-scale=1, user-scalable=no"/>
+    <meta charset="utf-8">
+    <!-- The Viewer CSS -->
+    <link rel="stylesheet" href="https://developer.api.autodesk.com/viewingservice/v1/viewers/style.min.css"
+          type="text/css">
+    <!-- Developer CSS -->
+    <style>
+        body {
+            margin: 0;
+        }
+
+        #MyViewerDiv {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            background-color: #F0F8FF;
+        }
+    </style>
+</head>
+<body>
+<!-- The Viewer will be instantiated here -->
+<div id="MyViewerDiv"></div>
+
+<!-- The Viewer JS -->
+<script src="https://developer.api.autodesk.com/viewingservice/v1/viewers/three.js"></script>
+<script src="https://developer.api.autodesk.com/viewingservice/v1/viewers/viewer3D.js"></script>
+
+<!-- Developer JS -->
+<script>
+    var viewerApp;
+    var viewer;
+    var extension;
+    var _mainViewerSubToolbar = null;
+	var controlGroup;
+	document.onkeydown = keyDown;
+    var options = {
+        env: 'AutodeskProduction',
+        getAccessToken: function (onGetAccessToken) {
+            var accessToken = 'kQy4e380TSASDDeH91GhdWphCrgo';
+            var expireTimeSeconds = 60 * 30;
+            onGetAccessToken(accessToken, expireTimeSeconds);
+        }
+
+    };
+    var documentId = 'urn:dXJuOmFkc2sub2JqZWN0czpvcy5vYmplY3Q6dGVzdGFuZG9zdGVjYXp6b2RpYXBpLWFydGh1cjEyMy9yZXZpdC5ydnQ';
+
+    Autodesk.Viewing.Initializer(options, function onInitialized() {
+        var config = {
+            extensions: ["Autodesk.Viewing.MarkupsCore","Autodesk.Viewing.MarkupRectangle"]
+        };
+        viewerApp = new Autodesk.Viewing.ViewingApplication('MyViewerDiv');
+        viewerApp.registerViewer(viewerApp.k3D, Autodesk.Viewing.Private.GuiViewer3D, config);
+        viewerApp.loadDocument(documentId, onDocumentLoadSuccess, onDocumentLoadFailure);
+    });
+
+    function onDocumentLoadSuccess(doc) {
+        var viewables = viewerApp.bubble.search({'type': 'geometry'});
+        if (viewables.length === 0) {
+            return;
+        }
+        viewerApp.selectItem(viewables[0].data, onItemLoadSuccess, onItemLoadFail);
+
+    }
+
+    function onDocumentLoadFailure(viewerErrorCode) {
+    }
+
+    function onItemLoadSuccess(viewer, item) {
+        extension = viewer.getExtension("Autodesk.Viewing.MarkupsCore");
+        this.viewer = viewer;
+        viewer.loadExtension('Viewing.Extension.Workshop');
+        // 加载新的按钮
+        createViewerToolbarMain();
+		// 隐藏别的按钮
+//		disableToolbarButtons();
+    }
+
+    // 创建新的按钮
+    function createViewerToolbarMain() {
+        var mainToolbar = viewer.getToolbar(true);
+
+        _mainViewerSubToolbar = new Autodesk.Viewing.UI.ControlGroup("lmvdbg_viewer_control_group");
+        // 标注箭头
+        var buttonMarkArrow = new Autodesk.Viewing.UI.Button("lmvdbg_viewer_tb_button_1");
+//        buttonMarkArrow.icon.style.backgroundImage = "url(./res/icons/lmvdbg1.png)";
+        buttonMarkArrow.setToolTip("Mark Arrow");
+        buttonMarkArrow.onClick = function(e) {
+			markArrows();
+        };
+        // 标注文本
+        var buttonMarkText = new Autodesk.Viewing.UI.Button("lmvdbg_viewer_tb_button_2");
+//        buttonMarkText.icon.style.backgroundImage = "url(./res/icons/lmvdbg2.png)";
+        buttonMarkText.setToolTip("Mark Text");
+        buttonMarkText.onClick = function(e) {
+			markTexts();
+        };
+
+		var buttonShowMark = new Autodesk.Viewing.UI.Button("lmvdbg_viewer_tb_button_3")
+		buttonShowMark.setToolTip("Show Marks");
+        buttonShowMark.onClick = function(e) {
+			loadMarks();
+        };
+
+        _mainViewerSubToolbar.addControl(buttonMarkArrow);
+        _mainViewerSubToolbar.addControl(buttonMarkText);
+        _mainViewerSubToolbar.addControl(buttonShowMark);
+
+        mainToolbar.addControl(_mainViewerSubToolbar);
+    }
+
+	function disableToolbarButtons() {
+		debugger;
+		var mainToolbar = viewer.getToolbar(true);
+        // 设置某些按钮隐藏
+        var _controlGroup_1 = mainToolbar.getControl("modelTools");
+		this.controlGroup = _controlGroup_1;
+		//this.controlGroup.getControl("toolbar-sectionTool").setVisible(false);
+		//_controlGroup_1.getControl("toolbar-sectionTool").setVisible(false);
+
+        //var _controlGroup_2 = mainToolbar.getControl("settingsTools");
+		//_controlGroup_2.getControl("toolbar-propertiesTool").setVisible(false);
+		//_controlGroup_2.getControl("toolbar-settingsTool").setVisible(false);
+	}
+
+	// 按任意键取消
+	var markupsStringDataArrays = new Array();
+	function keyDown(event) {
+		var e = event || window.event || arguments.callee.caller.arguments[0];
+		if(e && e.keyCode==27) {
+			var markupsStringData = extension.generateData();
+			markupsStringDataArrays.push(markupsStringData);
+//			extension.leaveEditMode();
+			extension.hide();
+		}
+	}
+
+	function markArrows() {
+		var modeArrow = new Autodesk.Viewing.Extensions.Markups.Core.EditModeArrow(extension);
+        console.log(modeArrow);
+        extension.enterEditMode();
+        extension.changeEditMode(modeArrow);
+		// 加载其他的标记
+		for (var i = 0; i < markupsStringDataArrays.length; i++) {
+			extension.loadMarkups(markupsStringDataArrays[i], "Layer_" + (i+1));
+		}
+	}
+
+	function markTexts() {
+		var modeText = new Autodesk.Viewing.Extensions.Markups.Core.EditModeText(extension);
+        console.log(modeText);
+        extension.enterEditMode();
+        extension.changeEditMode(modeText);
+		// 加载其他的标记
+		for (var i = 0; i < markupsStringDataArrays.length; i++) {
+			extension.loadMarkups(markupsStringDataArrays[i], "Layer_" + (i+1));
+		}
+	}
+	
+	function loadMarks() {
+		extension.show();
+		for (var i = 0; i < markupsStringDataArrays.length; i++) {
+			extension.loadMarkups(markupsStringDataArrays[i], "Layer_" + (i+1));
+		}
+	}
+
+    function onItemLoadFail(errorCode) {
+    }
+
+</script>
+</body>
+</html>
